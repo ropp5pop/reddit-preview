@@ -10,7 +10,6 @@
     <script src="https://jsdelivr.net"></script>
 
     <style>
-
       :root {
         --bg-color: #0b1416;
         --container-bg: #1a282d;
@@ -231,12 +230,6 @@
       const editor = document.getElementById("editor");
       const preview = document.getElementById("preview");
 
-      // Configure Marked.js options to strictly match core MD patterns
-      marked.setOptions({
-        breaks: false, // Reddit requires 2 spaces at line end for a strict <br>
-        gfm: true,
-      });
-
       // Custom parsing rule mimicking Reddit specific >! spoiler !< syntax
       function parseRedditSpoilers(text) {
         const regex = />!([\s\S]*?)!</g;
@@ -248,8 +241,11 @@
       function updatePreview() {
         const rawMarkdown = editor.value;
 
-        // Convert standard markdown to HTML string
-        let htmlOutput = marked.parse(rawMarkdown);
+        // Use the modern marked.parse parsing syntax with inline options
+        let htmlOutput = marked.parse(rawMarkdown, {
+          breaks: false, // Reddit requires 2 spaces at line end for a strict <br>
+          gfm: true,
+        });
 
         // Inject native client-side interactive spoilers into the output string
         htmlOutput = parseRedditSpoilers(htmlOutput);
