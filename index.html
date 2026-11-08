@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reddit Markdown Comment Previewer</title>
+    <!-- Marked.js for markdown parsing -->
+    <script src="https://jsdelivr.net"></script>
+
+    <style>
+        :root {
+            --bg-color: #0b1416;
+            --container-bg: #1a282d;
+            --text-color: #f2f4f5;
+            --border-color: #34444a;
+            --accent-color: #ff4500;
+            --button-bg: #2a3c42;
+            --button-hover: #39525a;
+            --spoiler-bg: #243338;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding: 20px;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            height: calc(100vh - 40px);
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            color: var(--text-color);
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background-color: var(--button-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            padding: 6px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--button-hover);
+        }
+
+        button.accent {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+
+        button.accent:hover {
+            background-color: #e03d00;
+        }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            flex-grow: 1;
+            min-height: 0;
+        }
+
+        .panel {
+            display: flex;
+            flex-direction: column;
+            background-color: var(--container-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            background-color: rgba(0,0,0,0.2);
+            padding: 10px 15px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border-color);
+            color: #879a9c;
+        }
+
+        textarea {
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            border: none;
+            color: var(--text-color);
+            padding: 15px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.95rem;
+            resize: none;
+            outline: none;
+        }
+
+        .preview {
+            padding: 15px;
+            overflow-y: auto;
+            height: 100%;
+            font-size: 0.95rem;
+        }
+
+        /* Reddit-like Markdown Styling overrides */
+        .preview p { margin-bottom: 0.8em; }
+        .preview h1, .preview h2, .preview h3 { margin: 1em 0 0.5em 0; }
+        .preview ul, .preview ol { padding-left: 20px; margin-bottom: 0.8em; }
+        .preview code { background-color: var(--button-bg); padding: 2px 4px; border-radius: 4px; font-family: monospace; }
+        .preview pre { background-color: var(--button-bg); padding: 10px; border-radius: 6px; overflow-x: auto; margin-bottom: 0.8em; }
+        .preview blockquote { border-left: 4px solid var(--border-color); padding-left: 10px; color: #879a9c; margin-bottom: 0.8em; }
+        
+        /* Reddit Native Spoiler Styling */
+        .reddit-spoiler {
+            background-color: var(--spoiler-bg);
+            color: transparent;
+            padding: 0 4px;
+            border-radius: 4px;
+            cursor: pointer;
+            user-select: none;
+            transition: color 0.1s ease;
+        }
+        
+        .reddit-spoiler.revealed {
+            background-color: transparent;
+            color: inherit;
+            user-select: auto;
+        }
+
+        @media (max-width: 768px) {
+            .workspace {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Reddit Comment Previewer</h1>
+        <div class="toolbar">
+            <button onclick="insertText('>!', '!<')">🕵️ Spoiler</button>
+            <button onclick="insertText('**', '**')"><b>B</b></button>
+            <button onclick="insertText('*', '*')"><i>I</i></button>
+            <button onclick="insertText('> ', '')">Quote</button>
+            <button onclick="insertText('  \n', '')">⏎ Line Break (br)</button>
+            <button class="accent" onclick="clearEditor()">Clear</button>
+        </div>
+    </header>
+
+    <div class="workspace">
+        <div class="panel">
+            <div class="panel-header">Markdown Input</div>
+            <textarea id="editor" placeholder="Type your Reddit comment here... Use two spaces at the end of a line for a <br> newline break."></textarea>
+        </div>
+        <div class="panel">
+            <div class="panel-header">Live Reddit Preview</div>
+            <div id="preview" class="preview"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const editor = document.getElementById('editor');
+    const preview = document.getElementById('preview');
+
+    // Configure Marked.js options to strictly match core MD patterns
+    marked.setOptions({
+        breaks: false, // Reddit requires 2 spaces at line end for a strict <br>
+        gfm: true
+    });
+
+    // Custom parsing rule mimicking Reddit specific >! spoiler !< syntax
+    function parseRedditSpoilers(text) {
+        const regex = />!([\s\S]*?)!</g;
+        return text.replace(regex, function(match, p1) {
+            return `<span class="reddit-spoiler" onclick="this.classList.toggle('revealed')">${p1}</span>`;
+        });
+    }
+
+    function updatePreview() {
+        const rawMarkdown = editor.value;
+        
+        // Convert standard markdown to HTML string
+        let htmlOutput = marked.parse(rawMarkdown);
+        
+        // Inject native client-side interactive spoilers into the output string
+        htmlOutput = parseRedditSpoilers(htmlOutput);
+        
+        preview.innerHTML = htmlOutput;
+    }
+
+    function insertText(before, after) {
+        const start = editor.selectionStart;
+        const end = editor.selectionEnd;
+        const text = editor.value;
+        const selected = text.substring(start, end);
+        
+        const replacement = before + selected + after;
+        editor.value = text.substring(0, start) + replacement + text.substring(end);
+        
+        editor.focus();
+        editor.selectionStart = start + before.length;
+        editor.selectionEnd = start + before.length + selected.length;
+        
+        updatePreview();
+    }
+
+    function clearEditor() {
+        if(confirm("Clear your text setup?")) {
+            editor.value = '';
+            updatePreview();
+        }
+    }
+
+    // Set initial custom baseline placeholder text demonstrating rules
+    editor.value = `Testing out Reddit Markdown processing here!
+
+This is a paragraph block.
+
+This line ends with two spaces to force an line-break layout.  
+See? This line instantly dropped straight down like a <br> tag!
+
+>!Click this text layout blocks to reveal a hidden spoiler.!<`;
+
+    editor.addEventListener('input', updatePreview);
+    window.addEventListener('DOMContentLoaded', updatePreview);
+</script>
+
+</body>
+</html>
