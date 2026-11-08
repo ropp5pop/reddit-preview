@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://jsdelivr.net" />
     <link rel="dns-prefetch" href="https://jsdelivr.net" />
     <!-- Add this exact missing line right here -->
-    <script src="https://jsdelivr.net"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.js"></script>
 
     <style>
       :root {
@@ -227,6 +227,7 @@
     </div>
 
     <script>
+      const { marked } = window.marked || window;
       const editor = document.getElementById("editor");
       const preview = document.getElementById("preview");
 
